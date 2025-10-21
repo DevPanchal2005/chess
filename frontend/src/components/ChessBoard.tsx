@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { Square, PieceSymbol, Color } from "chess.js";
 
-// Import piece images from src/pieces
 import wP from "../pieces/wP.png";
 import wR from "../pieces/wR.png";
 import wN from "../pieces/wN.png";
@@ -45,7 +44,7 @@ export const ChessBoard = ({
     color: Color;
   } | null)[][];
   socket: WebSocket;
-  playerColor: String;
+  playerColor: string;
 }) => {
   const [from, setFrom] = useState<null | Square>(null);
   const [legalMoves, setLegalMoves] = useState<
@@ -66,18 +65,15 @@ export const ChessBoard = ({
   };
 
   const handleSquareClick = (squareRepresentation: Square, square: any) => {
-    // Clicked same square → deselect
     if (from === squareRepresentation) {
       setFrom(null);
       setLegalMoves([]);
       return;
     }
 
-    // No square selected yet
     if (!from) {
       if (square && colorValidator(chess.get(squareRepresentation)?.color)) {
         setFrom(squareRepresentation);
-        // get all legal moves for that piece
         const moves = chess
           .moves({ square: squareRepresentation, verbose: true })
           .map((m: any) => ({ to: m.to, captured: m.captured }));
@@ -86,7 +82,6 @@ export const ChessBoard = ({
       return;
     }
 
-    // If another piece clicked — switch selection (don’t move yet)
     if (
       square &&
       chess.get(from)?.color === chess.get(squareRepresentation)?.color
@@ -99,7 +94,6 @@ export const ChessBoard = ({
       return;
     }
 
-    // If clicked on a legal move square → execute move
     const move = legalMoves.find((m) => m.to === squareRepresentation);
     if (move && colorValidator(chess.get(from)?.color)) {
       try {
@@ -118,59 +112,97 @@ export const ChessBoard = ({
       }
     }
 
-    // Reset selection in all cases after clicking
     setFrom(null);
     setLegalMoves([]);
   };
 
+  const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
+  const ranks = ["1", "2", "3", "4", "5", "6", "7", "8"];
+
+  // ✅ Flip both ranks and files for black
+  const displayedFiles = playerColor === "black" ? [...files].reverse() : files;
+  const displayedRanks = playerColor === "black" ? [...ranks].reverse() : ranks;
+  const displayedBoard = playerColor === "black" ? [...board].reverse() : board;
+
   return (
-    <div className="inline-block border border-gray-600">
-      {board.map((row, i) => (
-        <div className="flex" key={i}>
-          {row.map((square, j) => {
-            const squareRepresentation = (String.fromCharCode(97 + (j % 8)) +
-              (8 - i)) as Square;
-            const isDark = (i + j) % 2 === 1;
-            const squareColor = isDark ? "bg-green-700" : "bg-green-300";
-            const isSelected = from === squareRepresentation;
+    <div className="inline-block border border-gray-700 bg-neutral-800 p-3 rounded-lg shadow-lg">
+      {displayedBoard.map((row, i) => {
+        const displayRow = playerColor === "black" ? [...row].reverse() : row;
+        const rankIndex = displayedRanks[7 - i];
 
-            // Find move info for this square
-            const moveInfo = legalMoves.find(
-              (m) => m.to === squareRepresentation
-            );
-            const isMoveHint = !!moveInfo;
-            const isCaptureMove = moveInfo?.captured;
+        return (
+          <div className="flex" key={i}>
+            {displayRow.map((square, j) => {
+              const fileLetter = displayedFiles[j];
+              const squareRepresentation = (fileLetter + rankIndex) as Square;
+              const isDark = (i + j) % 2 === 1;
+              const squareColor = isDark ? "bg-green-700" : "bg-green-300";
+              const isSelected = from === squareRepresentation;
 
-            return (
-              <div
-                key={j}
-                onClick={() => handleSquareClick(squareRepresentation, square)}
-                className={`${squareColor} w-16 h-16 flex items-center justify-center relative transition-all duration-150 ${
-                  isSelected ? "bg-yellow-300" : ""
-                }`}
-              >
-                {square && (
-                  <img
-                    src={getPieceImage(square)}
-                    alt={`${square.color}${square.type}`}
-                    className="w-12 h-12 select-none pointer-events-none"
-                  />
-                )}
+              const moveInfo = legalMoves.find(
+                (m) => m.to === squareRepresentation
+              );
+              const isMoveHint = !!moveInfo;
+              const isCaptureMove = moveInfo?.captured;
 
-                {/* Normal move hint */}
-                {!square && isMoveHint && !isCaptureMove && (
-                  <div className="absolute w-4 h-4 bg-black/40 rounded-full"></div>
-                )}
+              const showFileLabel =
+                rankIndex === (playerColor === "white" ? "1" : "8");
+              const showRankLabel =
+                fileLetter === (playerColor === "white" ? "a" : "h");
 
-                {/* Capture hint for enemy pieces */}
-                {isCaptureMove && (
-                  <div className="absolute w-14 h-14 border-4 border-red-500/70 rounded-full pointer-events-none"></div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ))}
+              return (
+                <div
+                  key={j}
+                  onClick={() =>
+                    handleSquareClick(squareRepresentation, square)
+                  }
+                  className={`${squareColor} w-16 h-16 flex items-center justify-center relative select-none transition-all duration-150 ${
+                    isSelected ? "bg-yellow-300" : ""
+                  }`}
+                >
+                  {square && (
+                    <img
+                      src={getPieceImage(square)}
+                      alt={`${square.color}${square.type}`}
+                      className="w-12 h-12 pointer-events-none select-none"
+                    />
+                  )}
+
+                  {!square && isMoveHint && !isCaptureMove && (
+                    <div className="absolute w-4 h-4 bg-black/40 rounded-full"></div>
+                  )}
+                  {isCaptureMove && (
+                    <div className="absolute w-15 h-15 border-6 border-black/40 rounded-full pointer-events-none"></div>
+                  )}
+
+                  {showFileLabel && (
+                    <span
+                      className={`absolute bottom-0.5 right-0.5 text-md font-semibold ${
+                        squareColor == "bg-green-300"
+                          ? "text-green-700"
+                          : "text-green-300"
+                      }`}
+                    >
+                      {fileLetter}
+                    </span>
+                  )}
+                  {showRankLabel && (
+                    <span
+                      className={`absolute top-0.5 left-0.5 text-md font-semibold ${
+                        squareColor == "bg-green-300"
+                          ? "text-green-700"
+                          : "text-green-300"
+                      }`}
+                    >
+                      {rankIndex}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 };
